@@ -1,0 +1,12 @@
+<!-- WICHTIG: Diese Berechtigungen müssen nach `flutter create .` in die
+     Datei android/app/src/main/AndroidManifest.xml eingefügt werden,
+     und zwar INNERHALB des <manifest>-Tags, VOR <application>. -->
+
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.CAMERA"/>
+
+<!-- Die Kamera-/Foto-Funktion (image_picker) und Geolocator funktionieren
+     auf Android 12 (API 31) ohne weitere Spezialeinträge.
+     min SDK sollte 21 oder höher sein (Standard bei Flutter). -->

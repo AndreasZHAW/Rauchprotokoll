@@ -1,0 +1,33 @@
+name: rauchprotokoll
+description: App zur Dokumentation von Rauch-/Abgasbelastung in der Wohnung.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.3.0          # lokale Datenbank
+  path: ^1.8.3
+  path_provider: ^2.1.1    # Dateipfade (Fotos, PDF)
+  http: ^1.1.0             # Wetter-API (Open-Meteo)
+  geolocator: ^10.1.0      # GPS
+  image_picker: ^1.0.4     # Foto aufnehmen
+  table_calendar: ^3.0.9   # Kalender-Reiter
+  pdf: ^3.10.7             # PDF-Tabelle erzeugen
+  printing: ^5.11.1        # PDF teilen/öffnen
+  share_plus: ^7.2.1       # Export Textdaten / Mail öffnen
+  fl_chart: ^0.65.0        # Statistik-Diagramme
+  intl: ^0.18.1            # Datum/Zeit-Formatierung
+  shared_preferences: ^2.2.2 # Einstellungen
+  url_launcher: ^6.2.1     # mailto öffnen
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
