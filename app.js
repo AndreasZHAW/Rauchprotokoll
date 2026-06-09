@@ -542,7 +542,7 @@ document.getElementById('restoreInput').addEventListener('change',e=>{
 const settingsModal=document.getElementById('settingsModal');
 document.getElementById('btnSettings').addEventListener('click',()=>{
   const s=loadSettings();
-  const p=s.fontScale || 180;
+  const p=s.fontScale || 130;
   document.getElementById('fontSize').value=p;
   document.getElementById('fontSizeVal').textContent=p;
   document.getElementById('useFixed').checked=!!s.useFixed;
@@ -576,7 +576,7 @@ function applyFontScale(percent){
 }
 function loadFontScale(){
   const s=loadSettings();
-  const p=s.fontScale || 180;   // großzügiger Startwert, per Regler anpassbar
+  const p=s.fontScale || 130;   // großzügiger Startwert, per Regler anpassbar
   applyFontScale(p);
   return p;
 }
