@@ -37,7 +37,10 @@
     </div>
 
     <div class="group-label">Sichtbarkeit</div>
-    <div class="toggle-row">
+    <div class="toggle-row vis-row">
+      <button class="toggle" data-key="visFaint" data-group="vis">
+        <span class="t-icon">🌫</span><span>Fast nicht sichtbar</span>
+      </button>
       <button class="toggle" data-key="visLight" data-group="vis">
         <span class="t-icon">👁</span><span>Leicht sichtbar</span>
       </button>
@@ -54,18 +57,21 @@
     <label class="check"><input type="checkbox" id="headChild"> Kopfweh bei Kind(ern)</label>
 
     <div class="group-label">Details (optional)</div>
-    <label class="field">Fenster
-      <select id="windowState">
-        <option value="unbekannt">unbekannt</option>
-        <option value="offen">offen</option>
-        <option value="geschlossen">geschlossen</option>
-      </select>
-    </label>
+    <div class="sub-label">Betroffene Fensterseite(n)</div>
+    <div class="toggle-row">
+      <button class="toggle" data-key="winNord"><span class="t-icon">🧭</span><span>Nordseite</span></button>
+      <button class="toggle" data-key="winWest"><span class="t-icon">🧭</span><span>Westseite</span></button>
+      <button class="toggle" data-key="winOst"><span class="t-icon">🧭</span><span>Ostseite</span></button>
+    </div>
+    <div class="sub-label">Maßnahme</div>
+    <button class="toggle full-toggle" data-key="windowClosed">
+      <span class="t-icon">🪟</span><span>Fenster geschlossen</span>
+    </button>
     <label class="field">Betroffene Räume
       <input type="text" id="rooms" placeholder="z.B. Wohnzimmer, Kinderzimmer">
     </label>
-    <label class="field">Ergriffene Maßnahmen
-      <input type="text" id="measures" placeholder="z.B. Fenster geschlossen">
+    <label class="field">Weitere Maßnahmen
+      <input type="text" id="measures" placeholder="z.B. Lüftung abgestellt">
     </label>
     <label class="field">Notiz
       <textarea id="note" rows="3" placeholder="Freitext"></textarea>

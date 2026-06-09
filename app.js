@@ -50,7 +50,17 @@ function smellLabel(e){
 function visLabel(e){
   if(e.visStrong)return 'stark sichtbar';
   if(e.visLight)return 'leicht sichtbar';
+  if(e.visFaint)return 'fast nicht sichtbar';
   return '—';
+}
+function windowSidesLabel(e){
+  const p=[]; if(e.winNord)p.push('Nord'); if(e.winWest)p.push('West'); if(e.winOst)p.push('Ost');
+  return p.length?p.join(', '):'—';
+}
+function measuresLabel(e){
+  const p=[]; if(e.windowClosed)p.push('Fenster geschlossen');
+  if(e.measures)p.push(e.measures);
+  return p.length?p.join('; '):'—';
 }
 
 /* =========================================================
@@ -71,9 +81,11 @@ document.querySelectorAll('.nav-item').forEach(btn=>{
    ERFASSEN
    ========================================================= */
 const form = {
-  smellWood:false, smellToxic:false, visLight:false, visStrong:false,
+  smellWood:false, smellToxic:false,
+  visFaint:false, visLight:false, visStrong:false,
   intensity:3, headSelf:false, headChild:false,
-  windowState:'unbekannt', rooms:'', measures:'', note:'', photo:null
+  winNord:false, winWest:false, winOst:false, windowClosed:false,
+  rooms:'', measures:'', note:'', photo:null
 };
 
 // Toggle-Buttons
@@ -101,7 +113,6 @@ document.getElementById('intensity').addEventListener('input',e=>{
 ['headSelf','headChild'].forEach(id=>{
   document.getElementById(id).addEventListener('change',e=>form[id]=e.target.checked);
 });
-document.getElementById('windowState').addEventListener('change',e=>form.windowState=e.target.value);
 document.getElementById('rooms').addEventListener('input',e=>form.rooms=e.target.value);
 document.getElementById('measures').addEventListener('input',e=>form.measures=e.target.value);
 document.getElementById('note').addEventListener('input',e=>form.note=e.target.value);
@@ -130,15 +141,16 @@ document.getElementById('photoInput').addEventListener('change',e=>{
 });
 
 function resetForm(){
-  Object.assign(form,{smellWood:false,smellToxic:false,visLight:false,visStrong:false,
-    intensity:3,headSelf:false,headChild:false,windowState:'unbekannt',
+  Object.assign(form,{smellWood:false,smellToxic:false,
+    visFaint:false,visLight:false,visStrong:false,
+    intensity:3,headSelf:false,headChild:false,
+    winNord:false,winWest:false,winOst:false,windowClosed:false,
     rooms:'',measures:'',note:'',photo:null});
   document.querySelectorAll('.toggle').forEach(b=>b.classList.remove('on'));
   document.getElementById('intensity').value=3;
   document.getElementById('intensityVal').textContent='3';
   document.getElementById('headSelf').checked=false;
   document.getElementById('headChild').checked=false;
-  document.getElementById('windowState').value='unbekannt';
   document.getElementById('rooms').value='';
   document.getElementById('measures').value='';
   document.getElementById('note').value='';
@@ -256,7 +268,7 @@ async function fetchWeather(lat,lon){
 }
 
 document.getElementById('btnSave').addEventListener('click',async()=>{
-  if(!form.smellWood&&!form.smellToxic&&!form.visLight&&!form.visStrong){
+  if(!form.smellWood&&!form.smellToxic&&!form.visFaint&&!form.visLight&&!form.visStrong){
     toast('Bitte mindestens Geruch oder Sichtbarkeit wählen.'); return;
   }
   const btn=document.getElementById('btnSave');
@@ -266,9 +278,11 @@ document.getElementById('btnSave').addEventListener('click',async()=>{
   const entry={
     id, timestamp:new Date().toISOString(),
     smellWood:form.smellWood, smellToxic:form.smellToxic,
-    visLight:form.visLight, visStrong:form.visStrong,
+    visFaint:form.visFaint, visLight:form.visLight, visStrong:form.visStrong,
     intensity:form.intensity, headSelf:form.headSelf, headChild:form.headChild,
-    windowState:form.windowState, rooms:form.rooms.trim(),
+    winNord:form.winNord, winWest:form.winWest, winOst:form.winOst,
+    windowClosed:form.windowClosed,
+    rooms:form.rooms.trim(),
     measures:form.measures.trim(), note:form.note.trim(), photo:form.photo,
     lat:null,lon:null,temperature:null,pressure:null,humidity:null,
     windSpeed:null,windDirection:null,dispersion:null
@@ -355,13 +369,13 @@ function entryCard(e){
     <b>Sichtbarkeit</b><span>${visLabel(e)}</span>
     <b>Stärke</b><span>${e.intensity}/5</span>
     <b>Kopfweh</b><span>${headache}</span>
-    <b>Fenster</b><span>${e.windowState}</span>
+    <b>Fensterseite</b><span>${windowSidesLabel(e)}</span>
     <b>Räume</b><span>${e.rooms||'—'}</span>
     <b>Wind</b><span>${windCompass(e.windDirection)} • ${e.windSpeed??'—'} km/h</span>
     <b>Temperatur</b><span>${e.temperature??'—'} °C</span>
     <b>Luftdruck</b><span>${e.pressure??'—'} hPa</span>
     <b>Ausbreitung</b><span>${e.dispersion||'—'}</span>
-    <b>Maßnahmen</b><span>${e.measures||'—'}</span>
+    <b>Maßnahmen</b><span>${measuresLabel(e)}</span>
     <b>Notiz</b><span>${e.note||'—'}</span>`;
   card.appendChild(kv);
 
@@ -421,9 +435,9 @@ function buildRows(list){
     const headache=[e.headSelf?'ich':'',e.headChild?'Kind':''].filter(Boolean).join('/')||'—';
     return [
       String(e.id), fmtDateTime(e.timestamp), smellLabel(e), visLabel(e),
-      String(e.intensity), headache, windCompass(e.windDirection),
-      e.windSpeed??'—', e.temperature??'—', e.pressure??'—',
-      e.dispersion||'—', e.note||''
+      String(e.intensity), headache, windowSidesLabel(e),
+      windCompass(e.windDirection), e.windSpeed??'—', e.temperature??'—',
+      e.pressure??'—', e.dispersion||'—', measuresLabel(e), e.note||''
     ];
   });
 }
@@ -437,11 +451,11 @@ function makePdf(list, titleSuffix=''){
   doc.text(`Erstellt: ${fmtDateTime(new Date().toISOString())}  •  Einträge: ${list.length}`,14,21);
   doc.autoTable({
     startY:25,
-    head:[['Nr','Datum/Zeit','Geruch','Sicht','Int.','Kopfweh','Wind','km/h','°C','hPa','Ausbreitung','Notiz']],
+    head:[['Nr','Datum/Zeit','Geruch','Sicht','Int.','Kopfweh','Fenster','Wind','km/h','°C','hPa','Ausbreitung','Maßnahmen','Notiz']],
     body:buildRows(list),
-    styles:{fontSize:7,cellPadding:1.5},
+    styles:{fontSize:6.5,cellPadding:1.3},
     headStyles:{fillColor:[47,107,94]},
-    columnStyles:{11:{cellWidth:40}}
+    columnStyles:{12:{cellWidth:32},13:{cellWidth:34}}
   });
   doc.setFontSize(7);
   const y=doc.lastAutoTable.finalY+8;
@@ -459,8 +473,8 @@ document.getElementById('btnText').addEventListener('click',async()=>{
   let txt='Rauchprotokoll – Export\n\n';
   entries.forEach(e=>{
     txt+=`${fmtDateTime(e.timestamp)} | Geruch: ${smellLabel(e)} | ${visLabel(e)} | Stärke ${e.intensity}/5 | `+
-         `Wind ${windCompass(e.windDirection)} ${e.windSpeed??'—'}km/h | ${e.temperature??'—'}°C | `+
-         `${e.pressure??'—'}hPa | ${e.dispersion||'—'} | ${e.note||''}\n`;
+         `Fenster: ${windowSidesLabel(e)} | Wind ${windCompass(e.windDirection)} ${e.windSpeed??'—'}km/h | ${e.temperature??'—'}°C | `+
+         `${e.pressure??'—'}hPa | ${e.dispersion||'—'} | Maßnahmen: ${measuresLabel(e)} | ${e.note||''}\n`;
   });
   if(navigator.share){
     try{ await navigator.share({title:'Rauchprotokoll',text:txt}); return; }catch(e){}

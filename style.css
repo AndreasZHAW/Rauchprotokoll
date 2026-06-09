@@ -53,6 +53,9 @@ main{max-width:560px;margin:0 auto;padding:18px;}
 
 /* ---------- Toggles ---------- */
 .toggle-row{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.toggle-row.vis-row{grid-template-columns:1fr 1fr 1fr;}
+.full-toggle{width:100%;margin-top:4px;flex-direction:row;justify-content:center;gap:10px;padding:14px;}
+.sub-label{font-size:.85rem;color:var(--muted);margin:14px 0 8px;}
 .toggle{
   display:flex;flex-direction:column;align-items:center;gap:7px;
   padding:18px 10px;border:1.5px solid var(--line);border-radius:var(--radius);
