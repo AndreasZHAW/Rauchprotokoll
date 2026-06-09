@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Rauchprotokoll</title>
+<link rel="stylesheet" href="style.css">
+<!-- jsPDF für PDF-Erzeugung im Browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    Rauchprotokoll
+  </div>
+  <button id="btnSettings" class="icon-btn" title="Einstellungen" aria-label="Einstellungen">⚙</button>
+</header>
+
+<main>
+  <!-- ============ TAB: ERFASSEN ============ -->
+  <section id="tab-capture" class="tab active">
+    <h2>Rauch erfassen</h2>
+
+    <p class="hint">Datum, Uhrzeit, Standort und Wetter werden beim Speichern automatisch ergänzt.</p>
+
+    <div class="group-label">Geruch</div>
+    <div class="toggle-row">
+      <button class="toggle" data-key="smellWood">
+        <span class="t-icon">🌲</span><span>Riecht nach Holz</span>
+      </button>
+      <button class="toggle danger" data-key="smellToxic">
+        <span class="t-icon">⚠️</span><span>Giftig / chemisch</span>
+      </button>
+    </div>
+
+    <div class="group-label">Sichtbarkeit</div>
+    <div class="toggle-row">
+      <button class="toggle" data-key="visLight" data-group="vis">
+        <span class="t-icon">👁</span><span>Leicht sichtbar</span>
+      </button>
+      <button class="toggle" data-key="visStrong" data-group="vis">
+        <span class="t-icon">👁‍🗨</span><span>Stark sichtbar</span>
+      </button>
+    </div>
+
+    <div class="group-label">Stärke: <span id="intensityVal">3</span> / 5</div>
+    <input type="range" id="intensity" min="1" max="5" value="3" class="slider">
+
+    <div class="group-label">Gesundheit</div>
+    <label class="check"><input type="checkbox" id="headSelf"> Kopfweh bei mir</label>
+    <label class="check"><input type="checkbox" id="headChild"> Kopfweh bei Kind(ern)</label>
+
+    <div class="group-label">Details (optional)</div>
+    <label class="field">Fenster
+      <select id="windowState">
+        <option value="unbekannt">unbekannt</option>
+        <option value="offen">offen</option>
+        <option value="geschlossen">geschlossen</option>
+      </select>
+    </label>
+    <label class="field">Betroffene Räume
+      <input type="text" id="rooms" placeholder="z.B. Wohnzimmer, Kinderzimmer">
+    </label>
+    <label class="field">Ergriffene Maßnahmen
+      <input type="text" id="measures" placeholder="z.B. Fenster geschlossen">
+    </label>
+    <label class="field">Notiz
+      <textarea id="note" rows="3" placeholder="Freitext"></textarea>
+    </label>
+
+    <div class="group-label">Foto</div>
+    <div id="photoPreviewWrap" class="photo-preview hidden">
+      <img id="photoPreview" alt="Foto-Vorschau">
+    </div>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+    <button class="btn-outline full" id="btnPhoto">📷 Foto aufnehmen</button>
+
+    <div class="action-row">
+      <button class="btn-outline" id="btnDiscard">Eingabe löschen</button>
+      <button class="btn-primary" id="btnSave">Speichern</button>
+    </div>
+  </section>
+
+  <!-- ============ TAB: KALENDER ============ -->
+  <section id="tab-calendar" class="tab">
+    <h2>Kalender</h2>
+    <div class="cal-head">
+      <button class="icon-btn" id="calPrev">‹</button>
+      <span id="calTitle"></span>
+      <button class="icon-btn" id="calNext">›</button>
+    </div>
+    <div id="calendar" class="calendar"></div>
+    <div id="dayDetails" class="day-details">
+      <p class="hint">Tag antippen, um Einträge zu sehen.</p>
+    </div>
+  </section>
+
+  <!-- ============ TAB: AUSWERTUNG ============ -->
+  <section id="tab-stats" class="tab">
+    <h2>Auswertung</h2>
+    <div id="statCards" class="stat-cards"></div>
+    <div class="group-label">Einträge pro Monat</div>
+    <div id="barChart" class="bar-chart"></div>
+
+    <div class="export-row">
+      <button class="btn-primary full" id="btnPdf">📄 Als PDF-Tabelle exportieren</button>
+      <button class="btn-outline full" id="btnText">📤 Textdaten teilen / speichern</button>
+      <button class="btn-outline full" id="btnMonthly">✉️ Monatsbericht per Mail</button>
+    </div>
+
+    <div class="group-label">Datensicherung</div>
+    <button class="btn-outline full" id="btnBackup">💾 Backup speichern (JSON)</button>
+    <input type="file" id="restoreInput" accept="application/json" hidden>
+    <button class="btn-outline full" id="btnRestore">📥 Backup wiederherstellen</button>
+  </section>
+</main>
+
+<!-- ============ BOTTOM NAV ============ -->
+<nav class="bottomnav">
+  <button class="nav-item active" data-tab="capture"><span>＋</span>Erfassen</button>
+  <button class="nav-item" data-tab="calendar"><span>▦</span>Kalender</button>
+  <button class="nav-item" data-tab="stats"><span>▤</span>Auswertung</button>
+</nav>
+
+<!-- ============ SETTINGS MODAL ============ -->
+<div id="settingsModal" class="modal hidden">
+  <div class="modal-card">
+    <h3>Einstellungen</h3>
+
+    <div class="group-label">Standort für Wetterdaten</div>
+    <label class="check"><input type="checkbox" id="useFixed"> Feste Koordinaten verwenden</label>
+    <div id="fixedFields" class="hidden">
+      <label class="field">Breitengrad
+        <input type="text" id="fixedLat" placeholder="z.B. 47.3769">
+      </label>
+      <label class="field">Längengrad
+        <input type="text" id="fixedLon" placeholder="z.B. 8.5417">
+      </label>
+    </div>
+    <p class="hint">Standard ist GPS deines Geräts (Browser fragt nach Erlaubnis).</p>
+
+    <div class="group-label">Monatsbericht</div>
+    <label class="field">Empfänger-E-Mail
+      <input type="email" id="reportEmail" placeholder="meine.adresse@gmx.ch">
+    </label>
+    <p class="hint">Beim Senden öffnet sich deine Mail-App mit fertigem Betreff. Das PDF lädt separat herunter und kann angehängt werden.</p>
+
+    <div class="action-row">
+      <button class="btn-outline" id="btnSettingsClose">Schließen</button>
+      <button class="btn-primary" id="btnSettingsSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generisches Detail-Modal (Kalender-Eintrag) -->
+<div id="detailModal" class="modal hidden">
+  <div class="modal-card" id="detailCard"></div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
