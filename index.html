@@ -78,6 +78,34 @@
     <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
     <button class="btn-outline full" id="btnPhoto">📷 Foto aufnehmen</button>
 
+    <div class="group-label">
+      Aktuelles Wetter
+      <button class="mini-btn" id="btnRefreshWeather" title="Neu laden">⟳</button>
+    </div>
+    <div id="weatherBox" class="weather-box">
+      <p class="hint" id="weatherStatus">Wird geladen…</p>
+      <div id="weatherContent" class="weather-content hidden">
+        <div class="wind-compass">
+          <div class="compass-ring">
+            <span class="c-n">N</span><span class="c-e">O</span>
+            <span class="c-s">S</span><span class="c-w">W</span>
+            <div class="compass-arrow" id="compassArrow">↑</div>
+          </div>
+          <div class="wind-text">
+            <div class="wind-dir" id="windDir">—</div>
+            <div class="wind-spd" id="windSpd">— km/h</div>
+          </div>
+        </div>
+        <div class="weather-grid">
+          <div><b id="wTemp">—</b><span>Temperatur</span></div>
+          <div><b id="wPress">—</b><span>Luftdruck</span></div>
+          <div><b id="wHum">—</b><span>Feuchte</span></div>
+          <div><b id="wDisp">—</b><span>Ausbreitung</span></div>
+        </div>
+        <p class="weather-note" id="windNote"></p>
+      </div>
+    </div>
+
     <div class="action-row">
       <button class="btn-outline" id="btnDiscard">Eingabe löschen</button>
       <button class="btn-primary" id="btnSave">Speichern</button>

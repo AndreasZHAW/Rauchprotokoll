@@ -151,20 +151,82 @@ document.getElementById('btnDiscard').addEventListener('click',()=>{
 });
 
 /* ---------- Standort + Wetter ---------- */
+// liefert {coords:[lat,lon]} oder {error:'...'} – mit verständlichem Grund
 function getLocation(){
   return new Promise(resolve=>{
     const s=loadSettings();
     if(s.useFixed && s.fixedLat && s.fixedLon){
-      resolve([parseFloat(s.fixedLat), parseFloat(s.fixedLon)]); return;
+      const lat=parseFloat(s.fixedLat), lon=parseFloat(s.fixedLon);
+      if(isNaN(lat)||isNaN(lon)){ resolve({error:'Feste Koordinaten ungültig – bitte in den Einstellungen prüfen.'}); return; }
+      resolve({coords:[lat,lon]}); return;
     }
-    if(!navigator.geolocation){ resolve(null); return; }
+    if(!navigator.geolocation){ resolve({error:'Dieser Browser unterstützt keine Standortbestimmung.'}); return; }
     navigator.geolocation.getCurrentPosition(
-      pos=>resolve([pos.coords.latitude,pos.coords.longitude]),
-      ()=>resolve(null),
-      {timeout:10000, enableHighAccuracy:false}
+      pos=>resolve({coords:[pos.coords.latitude,pos.coords.longitude]}),
+      err=>{
+        let msg='Standort nicht verfügbar.';
+        if(err.code===1) msg='Standort-Erlaubnis verweigert. Bitte im Browser erlauben (Schloss-Symbol in der Adresszeile) – oder in den Einstellungen feste Koordinaten eintragen.';
+        else if(err.code===2) msg='Standort konnte nicht bestimmt werden (kein Signal). Tipp: feste Koordinaten in den Einstellungen eintragen.';
+        else if(err.code===3) msg='Standortabfrage hat zu lange gedauert. Bitte erneut laden.';
+        resolve({error:msg});
+      },
+      {timeout:12000, enableHighAccuracy:false, maximumAge:300000}
     );
   });
 }
+
+// zuletzt geladene Wetterdaten (werden beim Speichern verwendet)
+let currentWeather=null, currentCoords=null;
+
+// Wetterbereich auf der Erfassen-Seite laden und anzeigen
+async function loadWeatherDisplay(){
+  const statusEl=document.getElementById('weatherStatus');
+  const contentEl=document.getElementById('weatherContent');
+  statusEl.textContent='Wird geladen…';
+  statusEl.classList.remove('hidden');
+  contentEl.classList.add('hidden');
+  currentWeather=null; currentCoords=null;
+
+  const loc=await getLocation();
+  if(loc.error){ statusEl.textContent='⚠ '+loc.error; return; }
+  currentCoords=loc.coords;
+
+  const w=await fetchWeather(loc.coords[0],loc.coords[1]);
+  if(!w){ statusEl.textContent='⚠ Wetterdaten konnten nicht geladen werden (Internet prüfen).'; return; }
+  currentWeather=w;
+
+  // Anzeige füllen
+  statusEl.classList.add('hidden');
+  contentEl.classList.remove('hidden');
+  const compass=windCompass(w.windDirection);
+  document.getElementById('windDir').textContent=`aus ${compass}`;
+  document.getElementById('windSpd').textContent=`${w.windSpeed} km/h`;
+  document.getElementById('wTemp').textContent=`${w.temperature} °C`;
+  document.getElementById('wPress').textContent=`${w.pressure} hPa`;
+  document.getElementById('wHum').textContent=`${w.humidity} %`;
+  document.getElementById('wDisp').textContent=w.dispersion;
+
+  // Pfeil zeigt, WOHIN der Wind weht (Richtung + 180°)
+  const arrow=document.getElementById('compassArrow');
+  const blowTo=((w.windDirection||0)+180)%360;
+  arrow.style.transform=`translate(-50%,-50%) rotate(${blowTo}deg)`;
+
+  // Hinweis: weht der Wind Richtung Süden (also auf dich zu)?
+  const note=document.getElementById('windNote');
+  const towardCompass=windCompass(blowTo);
+  const south = blowTo>=135 && blowTo<=225;       // weht nach S/SO/SW
+  const lightWind = (w.windSpeed!==null && w.windSpeed<12);
+  arrow.classList.toggle('south', south);
+  if(south && lightWind){
+    note.className='weather-note hit';
+    note.textContent=`Wind weht nach ${towardCompass} bei wenig Wind – Rauch zieht in diese Richtung. Guter Zeitpunkt zum Dokumentieren.`;
+  } else {
+    note.className='weather-note';
+    note.textContent=`Wind weht nach ${towardCompass} (${w.windSpeed} km/h).`;
+  }
+}
+
+document.getElementById('btnRefreshWeather').addEventListener('click',loadWeatherDisplay);
 
 function estimateDispersion(temp,pres,hum){
   if(temp==null||pres==null) return 'neutral';
@@ -212,17 +274,21 @@ document.getElementById('btnSave').addEventListener('click',async()=>{
     windSpeed:null,windDirection:null,dispersion:null
   };
 
-  const loc=await getLocation();
-  if(loc){
-    entry.lat=loc[0]; entry.lon=loc[1];
-    const w=await fetchWeather(loc[0],loc[1]);
+  // Standort + Wetter: bereits angezeigte Werte nutzen, sonst frisch holen
+  let coords=currentCoords, w=currentWeather;
+  if(!coords){
+    const loc=await getLocation();
+    if(loc.coords){ coords=loc.coords; w=await fetchWeather(coords[0],coords[1]); }
+  }
+  if(coords){
+    entry.lat=coords[0]; entry.lon=coords[1];
     if(w){ Object.assign(entry,w); }
   }
 
   entries.push(entry); saveEntries(entries);
   resetForm();
   btn.disabled=false; btn.textContent='Speichern';
-  toast(loc?'Eintrag gespeichert.':'Gespeichert (ohne Standort/Wetter).');
+  toast(coords?'Eintrag gespeichert.':'Gespeichert (ohne Standort/Wetter).');
 });
 
 /* =========================================================
@@ -487,3 +553,4 @@ settingsModal.addEventListener('click',e=>{ if(e.target===settingsModal) setting
 
 /* ---------- Init ---------- */
 renderCalendar();
+loadWeatherDisplay();
