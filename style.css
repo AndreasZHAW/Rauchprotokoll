@@ -21,7 +21,7 @@ body{
   font-family:'Newsreader',Georgia,serif;
   background:var(--bg);
   color:var(--ink);
-  font-size:60px;
+  font-size:var(--base-font, 30px);
   line-height:1.4;
   padding-bottom:130px;
   background-image:radial-gradient(circle at 1px 1px,rgba(40,35,20,.04) 1px,transparent 0);
@@ -41,6 +41,7 @@ h3{font-family:'Fraunces',serif;font-weight:600;margin:0 0 1rem;}
 }
 .brand{font-family:'Fraunces',serif;font-weight:600;font-size:1.15rem;display:flex;align-items:center;gap:9px;}
 .dot{width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);}
+.version{font-family:'Newsreader',serif;font-weight:400;font-size:.6rem;color:var(--muted);margin-left:2px;}
 
 /* ---------- Layout ---------- */
 main{max-width:100%;margin:0 auto;padding:10px 4px;}
@@ -191,9 +192,3 @@ main{max-width:100%;margin:0 auto;padding:10px 4px;}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:30px;font-size:.9rem;z-index:50;box-shadow:var(--shadow);}
 
 .hidden{display:none!important;}
-
-/* Auf sehr breiten Bildschirmen (Desktop) Schrift normalisieren und zentrieren */
-@media (min-width:900px){
-  body{font-size:20px;}
-  main{max-width:640px;padding:18px;}
-}

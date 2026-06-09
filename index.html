@@ -15,6 +15,7 @@
   <div class="brand">
     <span class="dot"></span>
     Rauchprotokoll
+    <span class="version">v1.1</span>
   </div>
   <button id="btnSettings" class="icon-btn" title="Einstellungen" aria-label="Einstellungen">⚙</button>
 </header>
@@ -163,6 +164,10 @@
 <div id="settingsModal" class="modal hidden">
   <div class="modal-card">
     <h3>Einstellungen</h3>
+
+    <div class="group-label">Schriftgröße: <span id="fontSizeVal">100</span>%</div>
+    <input type="range" id="fontSize" min="80" max="260" step="10" value="100" class="slider">
+    <p class="hint">Wirkt sofort und wird gespeichert. Tipp: Falls dein Browser eine eigene Schriftgröße erzwingt, kannst du sie hier zusätzlich anpassen.</p>
 
     <div class="group-label">Standort für Wetterdaten</div>
     <label class="check"><input type="checkbox" id="useFixed"> Feste Koordinaten verwenden</label>

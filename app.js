@@ -542,6 +542,9 @@ document.getElementById('restoreInput').addEventListener('change',e=>{
 const settingsModal=document.getElementById('settingsModal');
 document.getElementById('btnSettings').addEventListener('click',()=>{
   const s=loadSettings();
+  const p=s.fontScale || 180;
+  document.getElementById('fontSize').value=p;
+  document.getElementById('fontSizeVal').textContent=p;
   document.getElementById('useFixed').checked=!!s.useFixed;
   document.getElementById('fixedFields').classList.toggle('hidden',!s.useFixed);
   document.getElementById('fixedLat').value=s.fixedLat||'';
@@ -554,17 +557,38 @@ document.getElementById('useFixed').addEventListener('change',e=>{
 });
 document.getElementById('btnSettingsClose').addEventListener('click',()=>settingsModal.classList.add('hidden'));
 document.getElementById('btnSettingsSave').addEventListener('click',()=>{
-  saveSettings({
-    useFixed:document.getElementById('useFixed').checked,
-    fixedLat:document.getElementById('fixedLat').value.trim().replace(',','.'),
-    fixedLon:document.getElementById('fixedLon').value.trim().replace(',','.'),
-    reportEmail:document.getElementById('reportEmail').value.trim()
-  });
+  const s=loadSettings();
+  s.useFixed=document.getElementById('useFixed').checked;
+  s.fixedLat=document.getElementById('fixedLat').value.trim().replace(',','.');
+  s.fixedLon=document.getElementById('fixedLon').value.trim().replace(',','.');
+  s.reportEmail=document.getElementById('reportEmail').value.trim();
+  s.fontScale=+document.getElementById('fontSize').value;
+  saveSettings(s);
   settingsModal.classList.add('hidden');
   toast('Einstellungen gespeichert.');
 });
 settingsModal.addEventListener('click',e=>{ if(e.target===settingsModal) settingsModal.classList.add('hidden'); });
 
+/* ---------- Schriftgröße ---------- */
+const BASE_PX = 30; // entspricht 100 %
+function applyFontScale(percent){
+  document.documentElement.style.setProperty('--base-font', (BASE_PX*percent/100)+'px');
+}
+function loadFontScale(){
+  const s=loadSettings();
+  const p=s.fontScale || 180;   // großzügiger Startwert, per Regler anpassbar
+  applyFontScale(p);
+  return p;
+}
+
+document.getElementById('fontSize').addEventListener('input',e=>{
+  const p=+e.target.value;
+  document.getElementById('fontSizeVal').textContent=p;
+  applyFontScale(p);                 // sofort sichtbar
+  const s=loadSettings(); s.fontScale=p; saveSettings(s); // sofort speichern
+});
+
 /* ---------- Init ---------- */
 renderCalendar();
 loadWeatherDisplay();
+loadFontScale();
