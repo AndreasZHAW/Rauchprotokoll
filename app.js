@@ -6,13 +6,11 @@
 const STORE_KEY = 'rauchprotokoll_entries';
 const SET_KEY   = 'rauchprotokoll_settings';
 
-/* ---------- Datenzugriff ---------- */
 function loadEntries(){
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
   catch(e){ return []; }
 }
 function saveEntries(arr){ localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }
-
 function loadSettings(){
   try { return JSON.parse(localStorage.getItem(SET_KEY)) || {}; }
   catch(e){ return {}; }
@@ -21,28 +19,22 @@ function saveSettings(s){ localStorage.setItem(SET_KEY, JSON.stringify(s)); }
 
 let entries = loadEntries();
 
-/* ---------- Hilfsfunktionen ---------- */
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.remove('hidden');
   clearTimeout(t._timer);
   t._timer = setTimeout(()=>t.classList.add('hidden'), 2600);
 }
-
 function fmtDateTime(iso){
   const d = new Date(iso);
   return d.toLocaleString('de-CH',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
-function fmtTime(iso){
-  return new Date(iso).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'});
-}
-
+function fmtTime(iso){ return new Date(iso).toLocaleTimeString('de-CH',{hour:'2-digit',minute:'2-digit'}); }
 function windCompass(deg){
   if(deg===null||deg===undefined) return '—';
   const dirs=['N','NO','O','SO','S','SW','W','NW'];
   return dirs[Math.round((deg%360)/45)%8];
 }
-
 function smellLabel(e){
   const p=[]; if(e.smellWood)p.push('Holz'); if(e.smellToxic)p.push('giftig/chemisch');
   return p.length?p.join(', '):'—';
@@ -61,6 +53,26 @@ function measuresLabel(e){
   const p=[]; if(e.windowClosed)p.push('Fenster geschlossen');
   if(e.measures)p.push(e.measures);
   return p.length?p.join('; '):'—';
+}
+
+/* ---------- Dateien herunterladen ---------- */
+function downloadFile(name, content, type){
+  const blob=new Blob([content],{type});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+}
+function backupFilename(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  return `rauchprotokoll_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}.json`;
+}
+function doBackup(){
+  if(entries.length===0){ toast('Keine Daten zum Sichern.'); return; }
+  downloadFile(backupFilename(), JSON.stringify(entries,null,2),'application/json');
+  const s=loadSettings(); s.lastBackup=new Date().toISOString(); saveSettings(s);
+  toast('Backup heruntergeladen.');
 }
 
 /* =========================================================
@@ -88,14 +100,12 @@ const form = {
   rooms:'', measures:'', note:'', photo:null
 };
 
-// Toggle-Buttons
 document.querySelectorAll('.toggle').forEach(btn=>{
   btn.addEventListener('click',()=>{
     const key = btn.dataset.key;
     const group = btn.dataset.group;
     if(group==='vis'){
-      // nur eine Sichtbarkeit gleichzeitig
-      form.visLight=false; form.visStrong=false;
+      form.visFaint=false; form.visLight=false; form.visStrong=false;
       document.querySelectorAll('[data-group="vis"]').forEach(b=>b.classList.remove('on'));
       form[key]=true; btn.classList.add('on');
     } else {
@@ -109,7 +119,6 @@ document.getElementById('intensity').addEventListener('input',e=>{
   form.intensity=+e.target.value;
   document.getElementById('intensityVal').textContent=e.target.value;
 });
-
 ['headSelf','headChild'].forEach(id=>{
   document.getElementById(id).addEventListener('change',e=>form[id]=e.target.checked);
 });
@@ -117,7 +126,6 @@ document.getElementById('rooms').addEventListener('input',e=>form.rooms=e.target
 document.getElementById('measures').addEventListener('input',e=>form.measures=e.target.value);
 document.getElementById('note').addEventListener('input',e=>form.note=e.target.value);
 
-// Foto: Kamera öffnen, Bild verkleinern, als DataURL speichern
 document.getElementById('btnPhoto').addEventListener('click',()=>document.getElementById('photoInput').click());
 document.getElementById('photoInput').addEventListener('change',e=>{
   const file=e.target.files[0]; if(!file)return;
@@ -125,15 +133,13 @@ document.getElementById('photoInput').addEventListener('change',e=>{
   reader.onload=ev=>{
     const img=new Image();
     img.onload=()=>{
-      // auf max 1280px Breite verkleinern (spart Speicher)
       const max=1280, scale=Math.min(1,max/img.width);
       const cv=document.createElement('canvas');
       cv.width=img.width*scale; cv.height=img.height*scale;
       cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
       form.photo=cv.toDataURL('image/jpeg',0.7);
-      const wrap=document.getElementById('photoPreviewWrap');
       document.getElementById('photoPreview').src=form.photo;
-      wrap.classList.remove('hidden');
+      document.getElementById('photoPreviewWrap').classList.remove('hidden');
     };
     img.src=ev.target.result;
   };
@@ -163,7 +169,6 @@ document.getElementById('btnDiscard').addEventListener('click',()=>{
 });
 
 /* ---------- Standort + Wetter ---------- */
-// liefert {coords:[lat,lon]} oder {error:'...'} – mit verständlichem Grund
 function getLocation(){
   return new Promise(resolve=>{
     const s=loadSettings();
@@ -187,58 +192,7 @@ function getLocation(){
   });
 }
 
-// zuletzt geladene Wetterdaten (werden beim Speichern verwendet)
 let currentWeather=null, currentCoords=null;
-
-// Wetterbereich auf der Erfassen-Seite laden und anzeigen
-async function loadWeatherDisplay(){
-  const statusEl=document.getElementById('weatherStatus');
-  const contentEl=document.getElementById('weatherContent');
-  statusEl.textContent='Wird geladen…';
-  statusEl.classList.remove('hidden');
-  contentEl.classList.add('hidden');
-  currentWeather=null; currentCoords=null;
-
-  const loc=await getLocation();
-  if(loc.error){ statusEl.textContent='⚠ '+loc.error; return; }
-  currentCoords=loc.coords;
-
-  const w=await fetchWeather(loc.coords[0],loc.coords[1]);
-  if(!w){ statusEl.textContent='⚠ Wetterdaten konnten nicht geladen werden (Internet prüfen).'; return; }
-  currentWeather=w;
-
-  // Anzeige füllen
-  statusEl.classList.add('hidden');
-  contentEl.classList.remove('hidden');
-  const compass=windCompass(w.windDirection);
-  document.getElementById('windDir').textContent=`aus ${compass}`;
-  document.getElementById('windSpd').textContent=`${w.windSpeed} km/h`;
-  document.getElementById('wTemp').textContent=`${w.temperature} °C`;
-  document.getElementById('wPress').textContent=`${w.pressure} hPa`;
-  document.getElementById('wHum').textContent=`${w.humidity} %`;
-  document.getElementById('wDisp').textContent=w.dispersion;
-
-  // Pfeil zeigt, WOHIN der Wind weht (Richtung + 180°)
-  const arrow=document.getElementById('compassArrow');
-  const blowTo=((w.windDirection||0)+180)%360;
-  arrow.style.transform=`translate(-50%,-50%) rotate(${blowTo}deg)`;
-
-  // Hinweis: weht der Wind Richtung Süden (also auf dich zu)?
-  const note=document.getElementById('windNote');
-  const towardCompass=windCompass(blowTo);
-  const south = blowTo>=135 && blowTo<=225;       // weht nach S/SO/SW
-  const lightWind = (w.windSpeed!==null && w.windSpeed<12);
-  arrow.classList.toggle('south', south);
-  if(south && lightWind){
-    note.className='weather-note hit';
-    note.textContent=`Wind weht nach ${towardCompass} bei wenig Wind – Rauch zieht in diese Richtung. Guter Zeitpunkt zum Dokumentieren.`;
-  } else {
-    note.className='weather-note';
-    note.textContent=`Wind weht nach ${towardCompass} (${w.windSpeed} km/h).`;
-  }
-}
-
-document.getElementById('btnRefreshWeather').addEventListener('click',loadWeatherDisplay);
 
 function estimateDispersion(temp,pres,hum){
   if(temp==null||pres==null) return 'neutral';
@@ -250,7 +204,6 @@ function estimateDispersion(temp,pres,hum){
   if(s<=-1)return 'sinkt zu Boden';
   return 'neutral';
 }
-
 async function fetchWeather(lat,lon){
   const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`+
     `&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m`;
@@ -267,6 +220,51 @@ async function fetchWeather(lat,lon){
   }catch(e){ return null; }
 }
 
+async function loadWeatherDisplay(){
+  const statusEl=document.getElementById('weatherStatus');
+  const contentEl=document.getElementById('weatherContent');
+  statusEl.textContent='Wird geladen…';
+  statusEl.classList.remove('hidden');
+  contentEl.classList.add('hidden');
+  currentWeather=null; currentCoords=null;
+
+  const loc=await getLocation();
+  if(loc.error){ statusEl.textContent='⚠ '+loc.error; return; }
+  currentCoords=loc.coords;
+
+  const w=await fetchWeather(loc.coords[0],loc.coords[1]);
+  if(!w){ statusEl.textContent='⚠ Wetterdaten konnten nicht geladen werden (Internet prüfen).'; return; }
+  currentWeather=w;
+
+  statusEl.classList.add('hidden');
+  contentEl.classList.remove('hidden');
+  const compass=windCompass(w.windDirection);
+  document.getElementById('windDir').textContent=`aus ${compass}`;
+  document.getElementById('windSpd').textContent=`${w.windSpeed} km/h`;
+  document.getElementById('wTemp').textContent=`${w.temperature} °C`;
+  document.getElementById('wPress').textContent=`${w.pressure} hPa`;
+  document.getElementById('wHum').textContent=`${w.humidity} %`;
+  document.getElementById('wDisp').textContent=w.dispersion;
+
+  const arrow=document.getElementById('compassArrow');
+  const blowTo=((w.windDirection||0)+180)%360;
+  arrow.style.transform=`translate(-50%,-50%) rotate(${blowTo}deg)`;
+
+  const note=document.getElementById('windNote');
+  const towardCompass=windCompass(blowTo);
+  const south = blowTo>=135 && blowTo<=225;
+  const lightWind = (w.windSpeed!==null && w.windSpeed<12);
+  arrow.classList.toggle('south', south);
+  if(south && lightWind){
+    note.className='weather-note hit';
+    note.textContent=`Wind weht nach ${towardCompass} bei wenig Wind – Rauch zieht in diese Richtung. Guter Zeitpunkt zum Dokumentieren.`;
+  } else {
+    note.className='weather-note';
+    note.textContent=`Wind weht nach ${towardCompass} (${w.windSpeed} km/h).`;
+  }
+}
+document.getElementById('btnRefreshWeather').addEventListener('click',loadWeatherDisplay);
+
 document.getElementById('btnSave').addEventListener('click',async()=>{
   if(!form.smellWood&&!form.smellToxic&&!form.visFaint&&!form.visLight&&!form.visStrong){
     toast('Bitte mindestens Geruch oder Sichtbarkeit wählen.'); return;
@@ -282,13 +280,11 @@ document.getElementById('btnSave').addEventListener('click',async()=>{
     intensity:form.intensity, headSelf:form.headSelf, headChild:form.headChild,
     winNord:form.winNord, winWest:form.winWest, winOst:form.winOst,
     windowClosed:form.windowClosed,
-    rooms:form.rooms.trim(),
-    measures:form.measures.trim(), note:form.note.trim(), photo:form.photo,
+    rooms:form.rooms.trim(), measures:form.measures.trim(), note:form.note.trim(), photo:form.photo,
     lat:null,lon:null,temperature:null,pressure:null,humidity:null,
     windSpeed:null,windDirection:null,dispersion:null
   };
 
-  // Standort + Wetter: bereits angezeigte Werte nutzen, sonst frisch holen
   let coords=currentCoords, w=currentWeather;
   if(!coords){
     const loc=await getLocation();
@@ -320,7 +316,6 @@ function entriesByDay(){
   });
   return map;
 }
-
 document.getElementById('calPrev').addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();});
 document.getElementById('calNext').addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();});
 
@@ -333,7 +328,7 @@ function renderCalendar(){
   });
   const byDay=entriesByDay();
   const first=new Date(calYear,calMonth,1);
-  let startDow=(first.getDay()+6)%7; // Montag=0
+  let startDow=(first.getDay()+6)%7;
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
   const today=new Date();
   for(let i=0;i<startDow;i++){const e=document.createElement('div');e.className='cal-day empty';cal.appendChild(e);}
@@ -347,7 +342,6 @@ function renderCalendar(){
     cal.appendChild(el);
   }
 }
-
 function renderDayDetails(key,list){
   const wrap=document.getElementById('dayDetails');
   if(list.length===0){wrap.innerHTML='<p class="hint">Keine Belastung an diesem Tag.</p>';return;}
@@ -355,14 +349,12 @@ function renderDayDetails(key,list){
   list.sort((a,b)=>a.timestamp.localeCompare(b.timestamp));
   list.forEach(e=>wrap.appendChild(entryCard(e)));
 }
-
 function entryCard(e){
   const card=document.createElement('div'); card.className='entry-card';
   const head=document.createElement('div'); head.className='ec-head';
   head.innerHTML=`<span>${fmtTime(e.timestamp)} Uhr</span>
     <span class="ec-tag ${e.smellToxic?'tox':''}">${smellLabel(e)}</span>`;
   card.appendChild(head);
-
   const headache=[e.headSelf?'ich':'',e.headChild?'Kind':''].filter(Boolean).join(', ')||'nein';
   const kv=document.createElement('div'); kv.className='kv';
   kv.innerHTML=`
@@ -378,9 +370,7 @@ function entryCard(e){
     <b>Maßnahmen</b><span>${measuresLabel(e)}</span>
     <b>Notiz</b><span>${e.note||'—'}</span>`;
   card.appendChild(kv);
-
   if(e.photo){const img=document.createElement('img');img.src=e.photo;card.appendChild(img);}
-
   const del=document.createElement('button'); del.className='del-link'; del.textContent='🗑 Löschen';
   del.addEventListener('click',()=>{
     if(confirm('Diesen Eintrag löschen?')){
@@ -407,8 +397,6 @@ function renderStats(){
     stat(toxic,'Giftig','var(--danger)')+
     stat(wood,'Holz','#8a6d3b')+
     stat(head,'Mit Kopfweh','#b5731f');
-
-  // pro Monat
   const map={};
   entries.forEach(e=>{
     const d=new Date(e.timestamp);
@@ -441,7 +429,6 @@ function buildRows(list){
     ];
   });
 }
-
 function makePdf(list, titleSuffix=''){
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF({orientation:'landscape'});
@@ -462,12 +449,10 @@ function makePdf(list, titleSuffix=''){
   doc.text('Hinweis: Zeitstempel automatisch gesetzt. GPS und Wetterdaten (Quelle: Open-Meteo) automatisch ergänzt.',14,y);
   return doc;
 }
-
 document.getElementById('btnPdf').addEventListener('click',()=>{
   if(entries.length===0){toast('Keine Einträge.');return;}
   makePdf(entries).save('rauchprotokoll.pdf');
 });
-
 document.getElementById('btnText').addEventListener('click',async()=>{
   if(entries.length===0){toast('Keine Einträge.');return;}
   let txt='Rauchprotokoll – Export\n\n';
@@ -479,11 +464,9 @@ document.getElementById('btnText').addEventListener('click',async()=>{
   if(navigator.share){
     try{ await navigator.share({title:'Rauchprotokoll',text:txt}); return; }catch(e){}
   }
-  // Fallback: als .txt herunterladen
   downloadFile('rauchprotokoll.txt', txt, 'text/plain');
   toast('Textdatei gespeichert.');
 });
-
 document.getElementById('btnMonthly').addEventListener('click',()=>{
   const s=loadSettings();
   const now=new Date();
@@ -496,7 +479,6 @@ document.getElementById('btnMonthly').addEventListener('click',()=>{
   const months=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   const monthName=`${months[lm.getMonth()]} ${lm.getFullYear()}`;
   makePdf(list,'– '+monthName).save(`rauchprotokoll_${monthName.replace(' ','_')}.pdf`);
-
   const to=s.reportEmail||'';
   const subject=encodeURIComponent('Rauchprotokoll '+monthName);
   const body=encodeURIComponent(`Anbei das Rauchprotokoll für ${monthName} (${list.length} Einträge). Bitte das soeben heruntergeladene PDF anhängen.`);
@@ -504,21 +486,7 @@ document.getElementById('btnMonthly').addEventListener('click',()=>{
   toast('PDF gespeichert – Mail-App öffnet sich.');
 });
 
-/* ---------- Backup / Wiederherstellen ---------- */
-function downloadFile(name, content, type){
-  const blob=new Blob([content],{type});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=name;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(a.href);
-}
-
-document.getElementById('btnBackup').addEventListener('click',()=>{
-  if(entries.length===0){toast('Keine Daten.');return;}
-  downloadFile('rauchprotokoll_backup.json', JSON.stringify(entries,null,2),'application/json');
-  toast('Backup gespeichert.');
-});
-
+document.getElementById('btnBackup').addEventListener('click',doBackup);
 document.getElementById('btnRestore').addEventListener('click',()=>document.getElementById('restoreInput').click());
 document.getElementById('restoreInput').addEventListener('change',e=>{
   const file=e.target.files[0]; if(!file)return;
@@ -537,6 +505,60 @@ document.getElementById('restoreInput').addEventListener('change',e=>{
 });
 
 /* =========================================================
+   BACKUP-ERINNERUNG (alle N Monate beim Öffnen)
+   ========================================================= */
+function checkBackupReminder(){
+  const s=loadSettings();
+  if(s.remindOn===false) return;            // ausgeschaltet
+  const months = s.remindMonths || 2;
+  const now=Date.now();
+  const last = s.lastReminderShown ? new Date(s.lastReminderShown).getTime() : 0;
+  const base = s.lastBackup ? new Date(s.lastBackup).getTime()
+             : (s.firstUse ? new Date(s.firstUse).getTime() : now);
+  const dueMs = months*30*24*60*60*1000;    // N Monate (ca.)
+  // Erinnerung fällig, wenn seit letztem Backup (oder erster Nutzung) genug Zeit ist
+  // und sie heute noch nicht gezeigt wurde.
+  const dayMs=24*60*60*1000;
+  const shownToday = last && (now-last) < dayMs;
+  if(!shownToday && entries.length>0 && (now-base) >= dueMs){
+    const el=document.getElementById('backupReminder');
+    const monthsSince = Math.floor((now-base)/(30*24*60*60*1000));
+    document.getElementById('reminderText').textContent=
+      `Letzte Sicherung ist etwa ${monthsSince} Monate her. Sichere deine Daten, damit nichts verloren geht.`;
+    el.classList.remove('hidden');
+    s.lastReminderShown=new Date().toISOString();
+    saveSettings(s);
+  }
+}
+document.getElementById('btnReminderBackup').addEventListener('click',()=>{
+  doBackup();
+  document.getElementById('backupReminder').classList.add('hidden');
+});
+document.getElementById('btnReminderLater').addEventListener('click',()=>{
+  document.getElementById('backupReminder').classList.add('hidden');
+});
+
+/* =========================================================
+   SCHRIFTGRÖSSE
+   ========================================================= */
+const BASE_PX = 30;
+function applyFontScale(percent){
+  document.documentElement.style.setProperty('--base-font', (BASE_PX*percent/100)+'px');
+}
+function loadFontScale(){
+  const s=loadSettings();
+  const p=s.fontScale || 130;
+  applyFontScale(p);
+  return p;
+}
+document.getElementById('fontSize').addEventListener('input',e=>{
+  const p=+e.target.value;
+  document.getElementById('fontSizeVal').textContent=p;
+  applyFontScale(p);
+  const s=loadSettings(); s.fontScale=p; saveSettings(s);
+});
+
+/* =========================================================
    EINSTELLUNGEN
    ========================================================= */
 const settingsModal=document.getElementById('settingsModal');
@@ -545,6 +567,8 @@ document.getElementById('btnSettings').addEventListener('click',()=>{
   const p=s.fontScale || 130;
   document.getElementById('fontSize').value=p;
   document.getElementById('fontSizeVal').textContent=p;
+  document.getElementById('remindOn').checked=s.remindOn!==false;
+  document.getElementById('remindMonths').value=s.remindMonths||2;
   document.getElementById('useFixed').checked=!!s.useFixed;
   document.getElementById('fixedFields').classList.toggle('hidden',!s.useFixed);
   document.getElementById('fixedLat').value=s.fixedLat||'';
@@ -558,37 +582,25 @@ document.getElementById('useFixed').addEventListener('change',e=>{
 document.getElementById('btnSettingsClose').addEventListener('click',()=>settingsModal.classList.add('hidden'));
 document.getElementById('btnSettingsSave').addEventListener('click',()=>{
   const s=loadSettings();
+  s.fontScale=+document.getElementById('fontSize').value;
+  s.remindOn=document.getElementById('remindOn').checked;
+  s.remindMonths=Math.max(1,Math.min(12,+document.getElementById('remindMonths').value||2));
   s.useFixed=document.getElementById('useFixed').checked;
   s.fixedLat=document.getElementById('fixedLat').value.trim().replace(',','.');
   s.fixedLon=document.getElementById('fixedLon').value.trim().replace(',','.');
   s.reportEmail=document.getElementById('reportEmail').value.trim();
-  s.fontScale=+document.getElementById('fontSize').value;
   saveSettings(s);
   settingsModal.classList.add('hidden');
   toast('Einstellungen gespeichert.');
 });
 settingsModal.addEventListener('click',e=>{ if(e.target===settingsModal) settingsModal.classList.add('hidden'); });
 
-/* ---------- Schriftgröße ---------- */
-const BASE_PX = 30; // entspricht 100 %
-function applyFontScale(percent){
-  document.documentElement.style.setProperty('--base-font', (BASE_PX*percent/100)+'px');
-}
-function loadFontScale(){
-  const s=loadSettings();
-  const p=s.fontScale || 130;   // großzügiger Startwert, per Regler anpassbar
-  applyFontScale(p);
-  return p;
-}
-
-document.getElementById('fontSize').addEventListener('input',e=>{
-  const p=+e.target.value;
-  document.getElementById('fontSizeVal').textContent=p;
-  applyFontScale(p);                 // sofort sichtbar
-  const s=loadSettings(); s.fontScale=p; saveSettings(s); // sofort speichern
-});
-
 /* ---------- Init ---------- */
+(function markFirstUse(){
+  const s=loadSettings();
+  if(!s.firstUse){ s.firstUse=new Date().toISOString(); saveSettings(s); }
+})();
 renderCalendar();
 loadWeatherDisplay();
 loadFontScale();
+checkBackupReminder();

@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Rauchprotokoll</title>
 <link rel="stylesheet" href="style.css">
-<!-- jsPDF für PDF-Erzeugung im Browser -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
@@ -15,39 +14,40 @@
   <div class="brand">
     <span class="dot"></span>
     Rauchprotokoll
-    <span class="version">v1.2</span>
+    <span class="version">v1.3</span>
   </div>
   <button id="btnSettings" class="icon-btn" title="Einstellungen" aria-label="Einstellungen">⚙</button>
 </header>
+
+<!-- Backup-Erinnerung (erscheint alle 2 Monate beim Öffnen) -->
+<div id="backupReminder" class="reminder hidden">
+  <div class="reminder-inner">
+    <b>Zeit für dein Backup</b>
+    <p id="reminderText">Es sind rund zwei Monate vergangen. Sichere deine Daten, damit nichts verloren geht.</p>
+    <div class="reminder-actions">
+      <button class="btn-primary" id="btnReminderBackup">Backup jetzt herunterladen</button>
+      <button class="btn-text" id="btnReminderLater">Später</button>
+    </div>
+  </div>
+</div>
 
 <main>
   <!-- ============ TAB: ERFASSEN ============ -->
   <section id="tab-capture" class="tab active">
     <h2>Rauch erfassen</h2>
-
     <p class="hint">Datum, Uhrzeit, Standort und Wetter werden beim Speichern automatisch ergänzt.</p>
 
     <div class="group-label">Geruch</div>
     <div class="toggle-row">
-      <button class="toggle" data-key="smellWood">
-        <span class="t-icon">🌲</span><span>Riecht nach Holz</span>
-      </button>
-      <button class="toggle danger" data-key="smellToxic">
-        <span class="t-icon">⚠️</span><span>Giftig / chemisch</span>
-      </button>
+      <button class="toggle" data-key="smellWood"><span class="t-icon">🌲</span><span>Riecht nach Holz</span></button>
+      <button class="toggle danger" data-key="smellToxic"><span class="t-icon">⚠️</span><span>Giftig / chemisch</span></button>
     </div>
 
     <div class="group-label">Sichtbarkeit</div>
     <div class="toggle-row vis-row">
-      <button class="toggle" data-key="visFaint" data-group="vis">
-        <span class="t-icon">🌫</span><span>Fast nicht sichtbar</span>
-      </button>
-      <button class="toggle" data-key="visLight" data-group="vis">
-        <span class="t-icon">👁</span><span>Leicht sichtbar</span>
-      </button>
-      <button class="toggle" data-key="visStrong" data-group="vis">
-        <span class="t-icon">👁‍🗨</span><span>Stark sichtbar</span>
-      </button>
+      <button class="toggle" data-key="visFaint" data-group="vis"><span class="t-icon">🌫</span><span>Fast nicht sichtbar</span></button>
+      <button class="toggle" data-key="visLight" data-group="vis"><span class="t-icon">👁</span><span>Leicht sichtbar</span></button>
+      <button class="toggle" data-key="visStrong" data-group="vis"><span class="t-icon">👁‍🗨</span><span>Stark sichtbar</span></button>
     </div>
 
     <div class="group-label">Stärke: <span id="intensityVal">3</span> / 5</div>
@@ -65,9 +65,7 @@
       <button class="toggle" data-key="winOst"><span class="t-icon">🧭</span><span>Ostseite</span></button>
     </div>
     <div class="sub-label">Maßnahme</div>
-    <button class="toggle full-toggle" data-key="windowClosed">
-      <span class="t-icon">🪟</span><span>Fenster geschlossen</span>
-    </button>
+    <button class="toggle full-toggle" data-key="windowClosed"><span class="t-icon">🪟</span><span>Fenster geschlossen</span></button>
     <label class="field">Betroffene Räume
       <input type="text" id="rooms" placeholder="z.B. Wohnzimmer, Kinderzimmer">
     </label>
@@ -147,7 +145,8 @@
     </div>
 
     <div class="group-label">Datensicherung</div>
-    <button class="btn-outline full" id="btnBackup">💾 Backup speichern (JSON)</button>
+    <p class="hint">Wichtig: Die Daten liegen nur in diesem Browser. Sichere regelmäßig ein Backup, damit nichts verloren geht.</p>
+    <button class="btn-primary full" id="btnBackup">💾 Backup speichern (JSON)</button>
     <input type="file" id="restoreInput" accept="application/json" hidden>
     <button class="btn-outline full" id="btnRestore">📥 Backup wiederherstellen</button>
   </section>
@@ -165,9 +164,16 @@
   <div class="modal-card">
     <h3>Einstellungen</h3>
 
-    <div class="group-label">Schriftgröße: <span id="fontSizeVal">100</span>%</div>
-    <input type="range" id="fontSize" min="80" max="260" step="10" value="100" class="slider">
-    <p class="hint">Wirkt sofort und wird gespeichert. Tipp: Falls dein Browser eine eigene Schriftgröße erzwingt, kannst du sie hier zusätzlich anpassen.</p>
+    <div class="group-label">Schriftgröße: <span id="fontSizeVal">130</span>%</div>
+    <input type="range" id="fontSize" min="80" max="260" step="10" value="130" class="slider">
+    <p class="hint">Wirkt sofort und wird gespeichert.</p>
+
+    <div class="group-label">Backup-Erinnerung</div>
+    <label class="check"><input type="checkbox" id="remindOn" checked> Erinnerung einschalten</label>
+    <label class="field">Alle wie viele Monate erinnern?
+      <input type="number" id="remindMonths" min="1" max="12" value="2">
+    </label>
+    <p class="hint">Beim Öffnen der App erscheint dann ein Hinweis, deine Daten zu sichern.</p>
 
     <div class="group-label">Standort für Wetterdaten</div>
     <label class="check"><input type="checkbox" id="useFixed"> Feste Koordinaten verwenden</label>
@@ -188,15 +194,10 @@
     <p class="hint">Beim Senden öffnet sich deine Mail-App mit fertigem Betreff. Das PDF lädt separat herunter und kann angehängt werden.</p>
 
     <div class="action-row">
-      <button class="btn-outline" id="btnSettingsClose">Schließen</button>
       <button class="btn-primary" id="btnSettingsSave">Speichern</button>
+      <button class="btn-outline" id="btnSettingsClose">Schließen</button>
     </div>
   </div>
-</div>
-
-<!-- Generisches Detail-Modal (Kalender-Eintrag) -->
-<div id="detailModal" class="modal hidden">
-  <div class="modal-card" id="detailCard"></div>
 </div>
 
 <div id="toast" class="toast hidden"></div>
